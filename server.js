@@ -13,7 +13,7 @@ app.post('/payload', (req, res) => {
   req.headers['x-github-event'] === 'pull_request_review') {
     return handlers.handle(req.body, req.header)
       .then(() => res.sendStatus(200))
-      .catch(() => res.sendStatus(500));
+      .catch((msg = 'Not supported') => res.status(500).send(msg));
   } else if (req.headers['x-github-event'] === 'ping') {
     return res.status(200).send('pong');
   } else {

@@ -71,7 +71,7 @@ function routeIt(body, headers) {
   if (body.action === 'submitted') return prReviewed(body);
 
   console.log('Not suitable handler at the moment');
-  return Promise.resolve('No Suitable handler at moment');
+  return Promise.reject('No Suitable handler at moment');
 }
 module.exports = {
   handle: routeIt,
