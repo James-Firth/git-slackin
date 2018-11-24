@@ -41,11 +41,34 @@ async function openedPR(body) {
   ]);
 }
 
+async function prReviewed(body) {
+  const reviewer = await findByGithubName(body.review.user.login);
+  const coder = await findByGithubName(body.pull_request.user.login);
+  let emoji = ':speech_balloon:';
+  const state = body.review.state.toLowerCase();
+  if (state === 'approved') {
+    emoji = ':heavy_check_mark:';
+  } else if (state === 'changes_requested') {
+    emoji = ':x:';
+  }
+
+  const message = `${emoji} ${reviewer.name} as reviewed your PR ` +
+  `<${body.review.html_url}|${body.pull_request.base.repo.name} PR #${body.pull_request.number}>: ` +
+  `\`${body.pull_request.title}\``;
+
+  return web.chat.postMessage({ channel: coder.slack.id, text: message })
+    .then((res) => {
+      console.log(`message sent at: ${res.ts}`);
+    })
+    .catch(console.error);
+}
+
 // very simple router based on the action that occurred.
 function routeIt(body, headers) {
   if (!body.action) throw new Error('no Action');
 
   if (body.action === 'opened') return openedPR(body);
+  if (body.action === 'submitted') return prReviewed(body);
 }
 module.exports = {
   handle: routeIt,

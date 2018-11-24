@@ -9,7 +9,8 @@ app.use(bodyParser.json());
 
 // Basic web server to handle payloads
 app.post('/payload', (req, res) => {
-  if (req.headers['x-github-event'] === 'pull_request') {
+  if (req.headers['x-github-event'] === 'pull_request' ||
+  req.headers['x-github-event'] === 'pull_request_review') {
     return handlers.handle(req.body, req.header)
       .then(() => res.sendStatus(200))
       .catch(() => res.sendStatus(500));
