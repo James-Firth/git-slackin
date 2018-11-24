@@ -9,14 +9,18 @@ app.use(bodyParser.json());
 
 // Basic web server to handle payloads
 app.post('/payload', (req, res) => {
+  console
   if (req.headers['x-github-event'] === 'pull_request' ||
   req.headers['x-github-event'] === 'pull_request_review') {
     return handlers.handle(req.body, req.header)
       .then(() => res.sendStatus(200))
       .catch(() => res.sendStatus(500));
+  } else if (req.headers['x-github-event'] === 'ping') {
+    return res.status(200).send('pong');
+  } else {
+    console.log('Invalid request!');
+    res.sendStatus(500);
   }
-  console.log('Invalid request!');
-  res.sendStatus(500);
 });
 
 app.listen(port, (err) => {
