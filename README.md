@@ -1,5 +1,12 @@
-# git-slackin
-connect github and slack better
+# Git Slackin'!
+
+Get notified better when using Github Pull Requests and Slack.
+
+## Current Features
+
+* When opening a PR, git-slackin will notify 2 random users in your user list to look at the PR
+* When a PR you opened receives a review,  you'll get a slack message
+* When a PR you commented on updates, you'll get a slack message
 
 ## Setup
 
