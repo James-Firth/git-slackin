@@ -1,6 +1,18 @@
+const octokit = require('@octokit/rest')();
+const config = require('config');
+
 // My Modules
 const { selectRandomGithubUsersNot, findByGithubName } = require('./users');
 const { send } = require('./messenger');
+
+// Number of reviewers required for our workflow. Could move to config eventually.
+const NUM_REVIEWERS = 2;
+
+// authenticate with Github
+octokit.authenticate({
+  type: 'token',
+  token: config.get('github'),
+});
 
 function buildOpenedPRMessage(opener, body) {
   const message = 'Hi! Please look at ' +
@@ -28,18 +40,43 @@ async function informOpener(opener, reviewers) {
   return send(conversationId, message);
 }
 
+async function requestReviewersAndAssignees(users, body) {
+  try {
+    const githubUsers = users.map(user => user.github);
+    await octokit.pullRequests.createReviewRequest({
+      owner: body.pull_request.base.repo.owner.login,
+      repo: body.pull_request.base.repo.name,
+      number: body.pull_request.number,
+      reviewers: githubUsers,
+    });
+    await octokit.issues.addAssignees({
+      owner: body.pull_request.base.repo.owner.login,
+      repo: body.pull_request.base.repo.name,
+      number: body.pull_request.number,
+      assignees: githubUsers,
+    });
+    console.log(`[Add Users to PR] Repo: ${body.pull_request.base.repo.name}. ` +
+    `Assigned and Request reviews from: ${githubUsers}`);
+    return 'worked';
+  } catch (e) {
+    console.error(`Error: ${e}`);
+    throw e;
+  }
+}
+
 // Handle everything we want to do about opening a PR.
 // v1: randomly pick 2 users and send them links on Slack
 async function openedPR(body) {
   try {
     // TODO: Have findByGithubName fail better if it can't find the person
     const opener = await findByGithubName(body.pull_request.user.login);
-    const users = await selectRandomGithubUsersNot(opener.github, 2);
+    const users = await selectRandomGithubUsersNot(opener.github, NUM_REVIEWERS);
 
     // TODO: Handle it better if either fails
     const results = await Promise.all([
       sendOpenedPrMessages(opener, users, body),
       informOpener(opener, users),
+      requestReviewersAndAssignees(users, body),
     ]);
     console.log(`[PR Opened] Opener: ${opener.name} Reviewers Messaged: ${users.map(user => user.name)}`);
     return results;
