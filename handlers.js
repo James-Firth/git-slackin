@@ -1,5 +1,6 @@
 const octokit = require('@octokit/rest')();
 const config = require('config');
+const crypto = require('crypto');
 
 // My Modules
 const { selectRandomGithubUsersNot, findByGithubName } = require('./users');
@@ -8,10 +9,11 @@ const { send } = require('./messenger');
 // Number of reviewers required for our workflow. Could move to config eventually.
 const NUM_REVIEWERS = 2;
 
+const hmac = crypto.createHmac('sha1', config.get('github_secret'));
 // authenticate with Github
 octokit.authenticate({
   type: 'token',
-  token: config.get('github'),
+  token: config.get('github_token'),
 });
 
 function buildOpenedPRMessage(opener, body) {
@@ -126,9 +128,21 @@ async function prReviewed(body) {
   }
 }
 
+function verifySignature(body, givenAlgSig) {
+  const stringBody = JSON.stringify(body);
+  hmac.update(stringBody);
+  const calculatedSignature = hmac.digest('hex');
+  const [algorithm, givenSignature] = givenAlgSig.split('=');
+
+  const verified = algorithm === 'sha1' && calculatedSignature === givenSignature;
+  console.log(`[Signature Verified] ${verified}`);
+  return verified;
+}
+
 // very simple router based on the action that occurred.
 function routeIt(body, headers) {
   if (!body.action) throw new Error('no Action');
+  if (!verifySignature(body, headers['x-hub-signature'])) throw new Error('Signatures do not match!');
   console.log(`[RouteIt] ${body.action} on ${body.pull_request.base.repo.name}`);
 
   if (body.action === 'opened') return openedPR(body);

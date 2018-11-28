@@ -11,7 +11,7 @@ app.use(bodyParser.json());
 app.post('/payload', (req, res) => {
   if (req.headers['x-github-event'] === 'pull_request' ||
   req.headers['x-github-event'] === 'pull_request_review') {
-    return handlers.handle(req.body, req.header)
+    return handlers.handle(req.body, req.headers)
       .then(() => res.sendStatus(200))
       .catch((msg = 'Not supported') => res.status(500).send(msg));
   } else if (req.headers['x-github-event'] === 'ping') {
