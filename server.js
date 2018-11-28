@@ -22,10 +22,12 @@ app.post('/payload', (req, res) => {
   }
 });
 
+app.get('/', (req, res) => res.send('Git Slackin\'!'));
+
 app.listen(port, (err) => {
   if (err) {
     return console.log('something bad happened', err);
   }
 
-  console.log(`server is listening on ${port}`);
+  console.log(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
 });

@@ -1,12 +1,6 @@
-const { WebClient } = require('@slack/client');
-const config = require('config');
-
 // My Modules
 const { selectRandomGithubUsersNot, findByGithubName } = require('./users');
-
-// Setup Slack web client
-const token = config.get('slack');
-const web = new WebClient(token);
+const { send } = require('./messenger');
 
 function buildOpenedPRMessage(opener, body) {
   const message = 'Hi! Please look at ' +
@@ -17,33 +11,61 @@ function buildOpenedPRMessage(opener, body) {
 
 function sendOpenedPrMessages(opener, users, body) {
   const messagesQueue = users.map(user => {
-    console.log(`sending to ${user.name}`);
+    console.log(`Send to ${user.name}`);
     const conversationId = user.slack.id;
 
-    // See: https://api.slack.com/methods/chat.postMessage
-    return web.chat.postMessage({ channel: conversationId, text: buildOpenedPRMessage(opener, body) })
-      .then((res) => {
-        console.log(`message sent at: ${res.ts}`);
-      })
-      .catch(console.error);
+    return send(conversationId, buildOpenedPRMessage(opener, body));
   });
 
   return Promise.all(messagesQueue);
 }
 
+async function informOpener(opener, reviewers) {
+  const conversationId = opener.slack.id;
+  const reviewersNames = reviewers.map(user => `<@${user.slack.id}>`);
+  const message = `I have requested ${reviewersNames} to review your PR`;
+
+  return send(conversationId, message);
+}
+
 // Handle everything we want to do about opening a PR.
 // v1: randomly pick 2 users and send them links on Slack
 async function openedPR(body) {
-  const opener = await findByGithubName(body.pull_request.user.login);
-  const users = await selectRandomGithubUsersNot(opener.github, 2);
-  return Promise.all([
-    sendOpenedPrMessages(opener, users, body),
-  ]);
+  try {
+    // TODO: Have findByGithubName fail better if it can't find the person
+    const opener = await findByGithubName(body.pull_request.user.login);
+    const users = await selectRandomGithubUsersNot(opener.github, 2);
+
+    // TODO: Handle it better if either fails
+    const results = await Promise.all([
+      sendOpenedPrMessages(opener, users, body),
+      informOpener(opener, users),
+    ]);
+    console.log(`[PR Opened] Opener: ${opener.name} Reviewers Messaged: ${users.map(user => user.name)}`);
+    return results;
+  } catch (e) {
+    console.log(`[PR Opened] Error: ${e}`);
+    throw e;
+  }
 }
 
 async function prReviewed(body) {
-  const reviewer = await findByGithubName(body.review.user.login);
-  const coder = await findByGithubName(body.pull_request.user.login);
+  let reviewer, coder;
+  try {
+    reviewer = await findByGithubName(body.review.user.login);
+    coder = await findByGithubName(body.pull_request.user.login);
+  } catch (e) {
+    console.error(`[PR Reviewed] Error: ${e}`);
+    throw e;
+  }
+
+  if (reviewer.slack.id === coder.slack.id) {
+    const exitEarlyMsg = '[PR Reviewed] No need to notify for commenting on your own PR';
+    console.log(exitEarlyMsg);
+    return exitEarlyMsg;
+  }
+  if (!reviewer || !coder) throw new Error('Could not finder reviewer or coder');
+
   let emoji = ':speech_balloon:';
   const state = body.review.state.toLowerCase();
   if (state === 'approved') {
@@ -52,26 +74,31 @@ async function prReviewed(body) {
     emoji = ':x:';
   }
 
-  const message = `${emoji} ${reviewer.name} as reviewed your PR ` +
+  const message = `${emoji} ${reviewer.name} has reviewed your PR ` +
   `<${body.review.html_url}|${body.pull_request.base.repo.name} PR #${body.pull_request.number}>: ` +
   `\`${body.pull_request.title}\``;
 
-  return web.chat.postMessage({ channel: coder.slack.id, text: message })
-    .then((res) => {
-      console.log(`message sent at: ${res.ts}`);
-    })
-    .catch(console.error);
+  console.log(`[PR Reviewed] Reviewer: ${reviewer.name}. Repo: ${body.pull_request.base.repo.name}.` +
+  `sending opener (${coder.name}, id ${coder.slack.id}) a message...`);
+
+  try {
+    return await send(coder.slack.id, message);
+  } catch (e) {
+    console.error(`[PR Reviewed] Error: ${e}`);
+    throw new Error(e);
+  }
 }
 
 // very simple router based on the action that occurred.
 function routeIt(body, headers) {
   if (!body.action) throw new Error('no Action');
+  console.log(`[RouteIt] ${body.action} on ${body.pull_request.base.repo.name}`);
 
   if (body.action === 'opened') return openedPR(body);
   if (body.action === 'submitted') return prReviewed(body);
 
-  console.log('Not suitable handler at the moment');
-  return Promise.reject('No Suitable handler at moment');
+  console.log(`[RouteIt] No handler for: ${body.action} on ${body.pull_request.base.repo.name}`);
+  return Promise.reject('Unhandled action type');
 }
 module.exports = {
   handle: routeIt,
