@@ -70,13 +70,23 @@ async function openedPR(body) {
   try {
     // TODO: Have findByGithubName fail better if it can't find the person
     const opener = await findByGithubName(body.pull_request.user.login);
-    const users = await selectRandomGithubUsersNot(opener.github, NUM_REVIEWERS);
+
+    // TODO: Should I include assignees in this? Or are we trusting its always equal?
+    // Making this do both could be a future enhancement
+    const numReviewersAlready = body.pull_request.requested_reviewers.length;
+    const numReviewersToRandomlySelect = NUM_REVIEWERS - numReviewersAlready;
+
+    const preselectedUsers = await Promise.all(body.pull_request.requested_reviewers.map(user => {
+      return findByGithubName(user.login);
+    }));
+    const randomUsers = await selectRandomGithubUsersNot(preselectedUsers.concat(opener.github), numReviewersToRandomlySelect);
+    const users = preselectedUsers.concat(randomUsers);
 
     // TODO: Handle it better if either fails
     const results = await Promise.all([
       sendOpenedPrMessages(opener, users, body),
       informOpener(opener, users),
-      requestReviewersAndAssignees(users, body),
+      requestReviewersAndAssignees(randomUsers, body),
     ]);
     logger.info(`[PR Opened] Opener: ${opener.name} Reviewers Messaged: ${users.map(user => user.name)}`);
     return results;
