@@ -1,4 +1,5 @@
-const users = require('./user_list.json');
+const appRoot = require('app-root-path');
+const users = require(`${appRoot}/user_list.json`);
 
 // Randomly select <numUsers> github users that are not <notMe>
 async function selectRandomGithubUsersNot(notMe, numUsers = 1) {

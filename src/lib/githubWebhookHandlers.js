@@ -3,33 +3,30 @@ const config = require('config');
 const crypto = require('crypto');
 
 // My Modules
-const logger = require('./logger');
+const logger = require('../logger');
 const { selectRandomGithubUsersNot, findByGithubName } = require('./users');
 const { send } = require('./messenger');
 
 // Number of reviewers required for our workflow. Could move to config eventually.
 const NUM_REVIEWERS = 2;
-
 const hmac = crypto.createHmac('sha1', config.get('github_secret'));
+
 // authenticate with Github
 octokit.authenticate({
   type: 'token',
   token: config.get('github_token'),
 });
 
-function buildOpenedPRMessage(opener, body) {
-  const message = 'Hi! Please look at ' +
-  `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
-  `"${body.pull_request.title}" that ${opener.name} opened.`;
-  return message;
-}
-
 function sendOpenedPrMessages(opener, users, body) {
   const messagesQueue = users.map(user => {
     logger.info(`Send to ${user.name}`);
     const conversationId = user.slack.id;
 
-    return send(conversationId, buildOpenedPRMessage(opener, body));
+    const message = 'Hi! Please look at ' +
+    `<${body.pull_request.html_url}|${body.pull_request.base.repo.name} PR #${body.number}> ` +
+    `"${body.pull_request.title}" that ${opener.name} opened.`;
+
+    return send(conversationId, message);
   });
 
   return Promise.all(messagesQueue);
@@ -159,7 +156,7 @@ function verifySignature(body, givenAlgSig) {
 }
 
 // very simple router based on the action that occurred.
-async function routeIt(body, headers) {
+async function routeIt(body, { signature }) {
   if (!body.action) throw new Error('no Action');
 
   // If we have signatures set up, best to check them

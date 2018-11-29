@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 
 const logger = require('./logger');
 // My modules
-const handlers = require('./handlers');
+const handlers = require('./lib/githubWebhookHandlers');
 
 app.use(bodyParser.json());
 
@@ -13,7 +13,7 @@ app.use(bodyParser.json());
 app.post('/payload', (req, res) => {
   if (req.headers['x-github-event'] === 'pull_request' ||
   req.headers['x-github-event'] === 'pull_request_review') {
-    return handlers.handle(req.body, req.headers)
+    return handlers.handle(req.body, { signature: req.headers['x-hub-signature'] })
       .then(() => res.sendStatus(200))
       .catch((msg = 'Not supported') => res.status(500).send(msg));
   } else if (req.headers['x-github-event'] === 'ping') {
