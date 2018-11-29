@@ -1,5 +1,7 @@
 const { WebClient } = require('@slack/client');
 const config = require('config');
+const { findBySlackUserId } = require('./users');
+const logger = require('./logger');
 
 // Setup Slack web client
 const token = config.get('slack');
@@ -8,7 +10,7 @@ const web = new WebClient(token);
 // Actually send a message
 function sendMessage(conversationId, message) {
   if (typeof process.env.DEBUG === 'string') {
-    console.log(`[DEBUG] conversationId: ${conversationId}, Message: ${message}`);
+    logger.debug(`[DEBUG] conversationId: ${conversationId}, Message: ${message}`);
   }
   if (typeof message !== 'string' || !message.trim()) throw new Error('Message must be a non-zero length string.');
   if (typeof conversationId !== 'string' || !conversationId.trim()) {
@@ -20,17 +22,17 @@ function sendMessage(conversationId, message) {
     text: message };
 
   if (typeof process.env.DEBUG === 'string') {
-    console.log(`[DEBUG] Message: ${JSON.stringify(params, null, 2)}`);
+    logger.debug(`[DEBUG] Message: ${JSON.stringify(params, null, 2)}`);
   }
 
   // See: https://api.slack.com/methods/chat.postMessage
   return web.chat.postMessage(params)
     .then((res) => {
-      console.log(`[Messenger] Sent to ${conversationId}. Timestamp: ${res.ts}`);
+      logger.info(`[Messenger] Sent to ${conversationId}. Timestamp: ${res.ts}`);
       return res;
     })
     .catch(e => {
-      console.error(e);
+      logger.error(e);
       throw e;
     });
 }
@@ -48,9 +50,18 @@ function openDM(userId) {
     });
 }
 
+// allows for more complicated checks in the future
+async function silenced(user) {
+  return (!user || !user.requestable);
+}
+
 // have to find the DM channel ID, then send a message on that channel.
 // just using the user ID sends the message via @slackbot instead.
-function sendDM(userId, message) {
+async function sendDM(userId, message) {
+  const user = await findBySlackUserId(userId);
+  const cannotSend = await silenced(user);
+  if (cannotSend) return logger.info(`[DM] Shh ${user.name} should not be bothered`);
+
   return openDM(userId)
     .then(dmChannelId => {
       return sendMessage(dmChannelId, message);

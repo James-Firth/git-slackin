@@ -3,6 +3,7 @@ const config = require('config');
 const crypto = require('crypto');
 
 // My Modules
+const logger = require('./logger');
 const { selectRandomGithubUsersNot, findByGithubName } = require('./users');
 const { send } = require('./messenger');
 
@@ -25,7 +26,7 @@ function buildOpenedPRMessage(opener, body) {
 
 function sendOpenedPrMessages(opener, users, body) {
   const messagesQueue = users.map(user => {
-    console.log(`Send to ${user.name}`);
+    logger.info(`Send to ${user.name}`);
     const conversationId = user.slack.id;
 
     return send(conversationId, buildOpenedPRMessage(opener, body));
@@ -57,11 +58,11 @@ async function requestReviewersAndAssignees(users, body) {
       number: body.pull_request.number,
       assignees: githubUsers,
     });
-    console.log(`[Add Users to PR] Repo: ${body.pull_request.base.repo.name}. ` +
+    logger.info(`[Add Users to PR] Repo: ${body.pull_request.base.repo.name}. ` +
     `Assigned and Request reviews from: ${githubUsers}`);
     return 'worked';
   } catch (e) {
-    console.error(`Error: ${e}`);
+    logger.error(`Error: ${e}`);
     throw e;
   }
 }
@@ -80,30 +81,48 @@ async function openedPR(body) {
       informOpener(opener, users),
       requestReviewersAndAssignees(users, body),
     ]);
-    console.log(`[PR Opened] Opener: ${opener.name} Reviewers Messaged: ${users.map(user => user.name)}`);
+    logger.info(`[PR Opened] Opener: ${opener.name} Reviewers Messaged: ${users.map(user => user.name)}`);
     return results;
   } catch (e) {
-    console.log(`[PR Opened] Error: ${e}`);
+    logger.error(`[PR Opened] Error: ${e}`);
     throw e;
   }
 }
 
+// TODO: Implement multiple modes "react" and "respond".
+// React will just react to the message about opening the PR
+// Respond will send a new message
+
+//TODO: Look at this later. Could cache ghuser/channel/ts/pull_request.node_id combo to look it up and remove it later
+// So when we request reviewers cache the info, with PR node ID as the key,
+// when a PR is reviewed, look up the PR Node.ghuser and grab the channel/ts info to remove it.
+// https://api.slack.com/methods/chat.postMessage
+// https://api.slack.com/methods/chat.delete
 async function prReviewed(body) {
   let reviewer, coder;
   try {
     reviewer = await findByGithubName(body.review.user.login);
     coder = await findByGithubName(body.pull_request.user.login);
   } catch (e) {
-    console.error(`[PR Reviewed] Error: ${e}`);
+    logger.error(`[PR Reviewed] Error: ${e}`);
     throw e;
+  }
+
+  if (!reviewer) {
+    logger.error('[PR Reviewed] Missing Reviewer from user list.');
+    throw new Error('Could not finder reviewer or coder');
+  }
+
+  if (!coder) {
+    logger.error('[PR Reviewed] Missing Coder from user list.');
+    throw new Error('Could not finder reviewer or coder');
   }
 
   if (reviewer.slack.id === coder.slack.id) {
     const exitEarlyMsg = '[PR Reviewed] No need to notify for commenting on your own PR';
-    console.log(exitEarlyMsg);
+    logger.debug(exitEarlyMsg);
     return exitEarlyMsg;
   }
-  if (!reviewer || !coder) throw new Error('Could not finder reviewer or coder');
 
   let emoji = ':speech_balloon:';
   const state = body.review.state.toLowerCase();
@@ -117,13 +136,13 @@ async function prReviewed(body) {
   `<${body.review.html_url}|${body.pull_request.base.repo.name} PR #${body.pull_request.number}>: ` +
   `\`${body.pull_request.title}\``;
 
-  console.log(`[PR Reviewed] Reviewer: ${reviewer.name}. Repo: ${body.pull_request.base.repo.name}.` +
-  `sending opener (${coder.name}, id ${coder.slack.id}) a message...`);
+  logger.info(`[PR Reviewed] Reviewer: ${reviewer.name}. Repo: ${body.pull_request.base.repo.name}.` +
+  `Sending opener (${coder.name}, id ${coder.slack.id}) a message...`);
 
   try {
     return await send(coder.slack.id, message);
   } catch (e) {
-    console.error(`[PR Reviewed] Error: ${e}`);
+    logger.error(`[PR Reviewed] Error: ${e}`);
     throw new Error(e);
   }
 }
@@ -135,20 +154,33 @@ function verifySignature(body, givenAlgSig) {
   const [algorithm, givenSignature] = givenAlgSig.split('=');
 
   const verified = algorithm === 'sha1' && calculatedSignature === givenSignature;
-  console.log(`[Signature Verified] ${verified}`);
+  logger.info(`[Signature Verified] ${verified}`);
   return verified;
 }
 
 // very simple router based on the action that occurred.
-function routeIt(body, headers) {
+async function routeIt(body, headers) {
   if (!body.action) throw new Error('no Action');
-  if (!verifySignature(body, headers['x-hub-signature'])) throw new Error('Signatures do not match!');
-  console.log(`[RouteIt] ${body.action} on ${body.pull_request.base.repo.name}`);
 
-  if (body.action === 'opened') return openedPR(body);
-  if (body.action === 'submitted') return prReviewed(body);
+  // If we have signatures set up, best to check them
+  // if (config.get('github_secret')) {
+  //   if (!verifySignature(body, headers['x-hub-signature'])) {
+  //     logger.error('Signature Error. Body:');
+  //     logger.error(JSON.stringify(body, null, 2));
+  //     throw new Error('Signatures do not match!');
+  //   }
+  // }
+  logger.info(`[RouteIt] ${body.action} on ${body.pull_request.base.repo.name}`);
 
-  console.log(`[RouteIt] No handler for: ${body.action} on ${body.pull_request.base.repo.name}`);
+  try {
+    if (body.action === 'opened') return await openedPR(body);
+    if (body.action === 'submitted') return await prReviewed(body);
+  } catch (e) {
+    logger.error(e);
+    throw e;
+  }
+
+  logger.warn(`[RouteIt] No handler for: ${body.action} on ${body.pull_request.base.repo.name}`);
   return Promise.reject('Unhandled action type');
 }
 module.exports = {

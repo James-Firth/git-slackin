@@ -4,8 +4,14 @@ Get notified better when using Github Pull Requests and Slack.
 
 ## Current Features
 
-* When opening a PR, git-slackin will notify 2 random users in your user list to look at the PR
-* When a PR you opened receives a review,  you'll get a slack message
+* Request reviews and send messages when opening a PR
+  * Git-slackin will pick 2 random, requestable users from the `user_list.json`
+  * Assigns them and requests a review from them on Github (_Note:_ These actions happen on the behalf of the user whose personal access token is in the config)
+  * Notifies the requested reviewers via a DM with a link to the PR
+  * Notifies the PR Opener who has been requested
+* Get notified when your PR is reviewd
+  * Git-Slackin will message the opener of the PR informing them of who submitted a review, and in what state (approved, commented, requested changes)
+* Don't bother people when then are not requestable
 
 ## Setup
 

@@ -7,3 +7,6 @@ jspm_packages
 config/*
 !config/example.json
 user_list.json
+
+# Logs
+*.log

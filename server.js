@@ -2,6 +2,8 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const bodyParser = require('body-parser');
+
+const logger = require('./logger');
 // My modules
 const handlers = require('./handlers');
 
@@ -17,7 +19,7 @@ app.post('/payload', (req, res) => {
   } else if (req.headers['x-github-event'] === 'ping') {
     return res.status(200).send('pong');
   } else {
-    console.log('Invalid request!');
+    logger.warn(`[HTTP] Unhandled event type: ${req.headers['x-github-event']}`);
     res.sendStatus(500);
   }
 });
@@ -26,8 +28,8 @@ app.get('/', (req, res) => res.send('Git Slackin\'!'));
 
 app.listen(port, (err) => {
   if (err) {
-    return console.log('something bad happened', err);
+    return logger.error('something bad happened', err);
   }
 
-  console.log(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
+  logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
 });

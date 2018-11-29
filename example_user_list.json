@@ -1,6 +1,7 @@
 [
   {
     "name": "James Firth",
+    "requestable": true,
     "github": "James-Firth",
     "slack": {
       "name": "james.firth",
