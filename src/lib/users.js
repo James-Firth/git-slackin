@@ -4,7 +4,7 @@ const users = require(`${appRoot}/user_list.json`);
 // Randomly select <numUsers> github users that are not <notMe>
 async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
   const usersToReturn = [];
-  const excludedGithubNames = [notMe];
+  const excludedGithubNames = Array.isArray(notMe) ? notMe : [notMe];
 
   while (usersToReturn.length < numUsers) {
     // Select a random user that is not the one we passed based on github name
