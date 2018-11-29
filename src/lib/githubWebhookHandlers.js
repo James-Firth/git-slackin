@@ -9,7 +9,6 @@ const { send } = require('./messenger');
 
 // Number of reviewers required for our workflow. Could move to config eventually.
 const NUM_REVIEWERS = 2;
-const hmac = crypto.createHmac('sha1', config.get('github_secret'));
 
 // authenticate with Github
 octokit.authenticate({
@@ -155,23 +154,30 @@ async function prReviewed(body) {
 }
 
 function verifySignature(body, givenAlgSig) {
-  const stringBody = JSON.stringify(body);
-  hmac.update(stringBody);
-  const calculatedSignature = hmac.digest('hex');
-  const [algorithm, givenSignature] = givenAlgSig.split('=');
+  try {
+    const hmac = crypto.createHmac('sha1', config.get('github_secret'));
+    const stringBody = JSON.stringify(body);
+    hmac.update(stringBody);
+    const calculatedSignature = hmac.digest('hex');
+    const [algorithm, givenSignature] = givenAlgSig.split('=');
 
-  const verified = algorithm === 'sha1' && calculatedSignature === givenSignature;
-  logger.info(`[Signature Verified] ${verified}`);
-  return verified;
+    const verified = algorithm === 'sha1' && calculatedSignature === givenSignature;
+    logger.info(`[Signature Verified] ${verified}`);
+    return verified;
+  } catch (e) {
+    logger.error(`[Signature verification Error] ${e}`);
+    return false;
+  }
 }
 
 // very simple router based on the action that occurred.
 async function routeIt(body, { signature }) {
   if (!body.action) throw new Error('no Action');
 
+  verifySignature(body, signature);
   // If we have signatures set up, best to check them
   // if (config.get('github_secret')) {
-  //   if (!verifySignature(body, headers['x-hub-signature'])) {
+  //   if (!verifySignature(body, signature)) {
   //     logger.error('Signature Error. Body:');
   //     logger.error(JSON.stringify(body, null, 2));
   //     throw new Error('Signatures do not match!');
