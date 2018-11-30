@@ -42,21 +42,26 @@ async function informOpener(opener, reviewers) {
 async function requestReviewersAndAssignees(users, body) {
   try {
     const githubUsers = users.map(user => user.github);
-    await octokit.pullRequests.createReviewRequest({
+
+    // Should probably look at the results to check if reviewres are there.
+    const reviewRequests = await octokit.pullRequests.createReviewRequest({
       owner: body.pull_request.base.repo.owner.login,
       repo: body.pull_request.base.repo.name,
       number: body.pull_request.number,
       reviewers: githubUsers,
     });
-    await octokit.issues.addAssignees({
+
+    const assignees = await octokit.issues.addAssignees({
       owner: body.pull_request.base.repo.owner.login,
       repo: body.pull_request.base.repo.name,
       number: body.pull_request.number,
       assignees: githubUsers,
     });
+
+    // logger.debug(`reviewRequests: ${JSON.stringify(reviewRequests, null, 2)}. Assigness: ${JSON.stringify(assignees, null, 2)}`);
     logger.info(`[Add Users to PR] Repo: ${body.pull_request.base.repo.name}. ` +
     `Assigned and Request reviews from: ${githubUsers}`);
-    return 'worked';
+    return [reviewRequests, assignees];
   } catch (e) {
     logger.error(`Error: ${e}`);
     throw e;
