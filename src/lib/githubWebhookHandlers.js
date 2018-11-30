@@ -179,15 +179,14 @@ function verifySignature(body, givenAlgSig) {
 async function routeIt(body, { signature }) {
   if (!body.action) throw new Error('no Action');
 
-  verifySignature(body, signature);
   // If we have signatures set up, best to check them
-  // if (config.get('github_secret')) {
-  //   if (!verifySignature(body, signature)) {
-  //     logger.error('Signature Error. Body:');
-  //     logger.error(JSON.stringify(body, null, 2));
-  //     throw new Error('Signatures do not match!');
-  //   }
-  // }
+  if (config.get('github_secret')) {
+    if (!verifySignature(body, signature)) {
+      logger.error('Signature Error. Body:');
+      logger.error(JSON.stringify(body, null, 2));
+      throw new Error('Signatures do not match!');
+    }
+  }
   logger.info(`[RouteIt] ${body.action} on ${body.pull_request.base.repo.name}`);
 
   try {
