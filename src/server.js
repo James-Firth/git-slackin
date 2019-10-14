@@ -1,5 +1,7 @@
 const express = require('express');
 const app = express();
+const fs = require('fs');
+const path = require('path');
 const port = 8778;
 const bodyParser = require('body-parser');
 const config = require('config');
@@ -38,14 +40,17 @@ if (process.env.GS_SILENT || (config.has('silent_boot') && config.get('silent_bo
 // end bootup message stuff
 
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Basic web server to handle payloads
 app.post('/payload', (req, res) => {
   if (req.headers['x-github-event'] === 'pull_request' ||
   req.headers['x-github-event'] === 'pull_request_review' ||
   req.headers['x-github-event'] === 'pull_request_review_comment') {
-    return githubWebhooks.handle(req.body, { signature: req.headers['x-hub-signature'] })
+    return githubWebhooks.handle(req.body, {
+      signature: req.headers['x-hub-signature'],
+      webhookId: req.headers['x-github-delivery'],
+    })
       .then(() => res.sendStatus(200))
       .catch((msg = 'Not supported') => res.status(500).send(msg));
   } else if (req.headers['x-github-event'] === 'ping') {
@@ -67,6 +72,19 @@ app.post('/slack/events', (req, res) => {
 app.get('/', (req, res) => {
   logger.info('[HTTP] hit /');
   return res.send('Git Slackin\'!');
+});
+
+// For use with Let's Encrypt
+app.get('/.well-known/acme-challenge/:token', (req, res) => {
+  const challengeFilePath = path.join(__dirname, '..', 'letsencrypt', 'secret.txt');
+  fs.readFile(challengeFilePath, (err, contents) => {
+    if (!err) {
+      return res.send(contents);
+    } else {
+      logger.err(`Could not complete ACME challenge. Error: ${err}`);
+      return res.sendStatus(500); // send a generic error back
+    }
+  });
 });
 
 app.listen(port, (err) => {
