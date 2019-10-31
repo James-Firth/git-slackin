@@ -255,7 +255,7 @@ function verify(headers, body) {
 }
 
 function route(req, res, next) {
-  if (!verify(req.headers, req.body)) return res.sendStatus(400);
+  if (!verify(req.headers, JSON.stringify(req.body))) return res.sendStatus(400);
   if (req.body.type === 'url_verification') return challenge(req, res, next);
 
   if (!req.body.event) {
