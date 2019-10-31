@@ -1,6 +1,7 @@
 const logger = require('../../logger');
 const config = require('config');
 const common = require('./common');
+const crypto = require('crypto');
 const { sendToChannel, sendEphemeralMessage, send } = require('./message');
 const { benchUserBySlackId, activateUserBySlackId, findByGithubName, findBySlackUserId,
   muteNotificationsBySlackId, unmuteNotificationsBySlackId, createUser } = require('../users');
@@ -234,12 +235,27 @@ async function handleDM(theEvent, res) {
   return await handleCommands(theEvent.text, theEvent, res);
 }
 
-function verify() {
-  logger.warn('NOTE: we should verify this message');
+function verify(headers, body) {
+  const timestamp = headers['x-slack-request-timestamp'];
+  const providedSignature = headers['x-slack-signature'];
+  const secret = config.get('slack_signing_secret');
+  const now = Date.now();
+  if (Math.abs(now - timestamp) > (60 * 5)) {
+    logger.warn(`[Verify] ${timestamp} is much older than 5 minutes (now: ${now} disallow message.)`);
+    return false;
+  }
+
+  const toHash = `v0:${timestamp}:${body}`;
+  const hmacComputer = crypto.createHmac('sha256', secret);
+  hmacComputer.update(toHash);
+  const calculatedSignature = hmacComputer.digest('hex');
+
+  logger.debug(`Signature:\n${calculatedSignature}\n${providedSignature}`);
+  return calculatedSignature === providedSignature;
 }
 
 function route(req, res, next) {
-  verify();
+  if (!verify(req.headers, req.body)) return res.sendStatus(400);
   if (req.body.type === 'url_verification') return challenge(req, res, next);
 
   if (!req.body.event) {
