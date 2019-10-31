@@ -12,7 +12,7 @@ async function synchronizeUserList() {
 // Register new users with some sane defaults
 async function createUser(
   name, slackInfo, githubUsername,
-  { requestable = true, merger = false, review_action = 'respond', notifications = true }
+  { requestable = true, merger = false, review_action = 'respond', notifications = true } = {}
 ) {
   const newUser = {
     name,
