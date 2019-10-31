@@ -1,8 +1,11 @@
 const express = require('express');
 const app = express();
+const http = require('http');
+const https = require('https'); // TODO: Use this to serve up HTTPS properly
 const fs = require('fs');
 const path = require('path');
 const port = 8778;
+const httpsPort = 8779;
 const bodyParser = require('body-parser');
 const config = require('config');
 const logger = require('./logger');
@@ -57,7 +60,7 @@ app.post('/payload', (req, res) => {
     return res.status(200).send('pong');
   } else {
     logger.warn(`[HTTP] Unhandled event type: ${req.headers['x-github-event']}`);
-    res.sendStatus(500);
+    res.sendStatus(406);
   }
 });
 
@@ -87,10 +90,24 @@ app.get('/.well-known/acme-challenge/:token', (req, res) => {
   });
 });
 
-app.listen(port, (err) => {
-  if (err) {
-    return logger.error('something bad happened', err);
-  }
+http.createServer(app)
+  .listen(port, (err) => {
+    if (err) {
+      return logger.error('something bad happened', err);
+    }
 
-  logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
-});
+    logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
+  });
+
+https.createServer({
+  key: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'cert.pem')),
+  ca: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'chain.pem')),
+}, app)
+  .listen(httpsPort, (err) => {
+    if (err) {
+      return logger.error('something bad happened', err);
+    }
+
+    logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
+  });
