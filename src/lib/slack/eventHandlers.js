@@ -251,7 +251,7 @@ function verify(headers, body) {
   const calculatedSignature = `v0=${hmacComputer.digest('hex')}`;
 
   logger.debug(`Signature:\n${calculatedSignature}\n${providedSignature}`);
-  return calculatedSignature === providedSignature;
+  return crypto.timingSafeEqual(Buffer.from(calculatedSignature, 'utf8'), Buffer.from(providedSignature, 'utf8'));
 }
 
 function route(req, res, next) {
