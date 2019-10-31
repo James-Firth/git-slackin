@@ -3,5 +3,6 @@
   "github_secret": "super secret",
   "slack": "xoxp-a-slack-token",
   "slack_manager_ids": ["U99A99AAA"],
-  "slack_announce_channel_id": "CZ1ZZ1Z1Z"
+  "slack_announce_channel_id": "CZ1ZZ1Z1Z",
+  "requestReviewFromAssignee": true // defaults to true, false must be explicitly set
 }

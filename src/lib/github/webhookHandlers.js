@@ -325,15 +325,51 @@ async function prClosed(body) {
     } else {
       return logger.warn('[PR Closed] No slack user to message');
     }
-    return logger.info(`[PR Closed] PR Opener notified`);
+    return logger.info('[PR Closed] PR Opener notified');
   } catch (e) {
     logger.error(`[PR Closed] Error: ${e}`);
     throw e;
   }
 }
 
+async function prAssigned(body) {
+  try {
+    logger.info(`[PR Assigned] Assignee: ${body.pull_request.assignee.login}`);
+
+    // Has to explicitly be set to false
+    if (config.has('requestReviewFromAssignee') && config.get('requestReviewFromAssignee') === false) {
+      return logger.info('[PR Assigned] No action taken due to configs');
+    } else {
+      const currentReviewRequestsBundle = await octokit.pullRequests.listReviews({
+        owner: body.pull_request.base.repo.owner.login,
+        repo: body.pull_request.base.repo.name,
+        number: body.pull_request.number,
+      });
+
+      const assigneeAlreadyRequested = currentReviewRequestsBundle.data.users.find((element) => {
+        return element.login === body.pull_request.assignee.login;
+      }) || null;
+
+      if (assigneeAlreadyRequested) {
+        return logger.info('[PR Assigned] Already has a review requested; No action taken.');
+      }
+      const requestReview = await octokit.pullRequests.createReviewRequest({
+        owner: body.pull_request.base.repo.owner.login,
+        repo: body.pull_request.base.repo.name,
+        number: body.pull_request.number,
+        reviewers: body.pull_request.assignee.login,
+      });
+      return logger.info('[PR Assigned] Succesfully requested review from assignee.');
+    }
+  } catch (e) {
+    logger.error(`[PR Assigned] Error: ${e}`);
+    throw e;
+  }
+}
+
 module.exports = {
   pr: {
+    assigned: prAssigned,
     closed: prClosed,
     opened: prOpened,
     reviewed: prReviewed,
