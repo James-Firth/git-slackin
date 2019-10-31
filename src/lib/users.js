@@ -28,7 +28,7 @@ async function createUser(
   };
 
   users.push(newUser);
-  logger.info('[USERS] New User created.');
+  logger.info(`[USERS] New User created: ${JSON.stringify(newUser)}`);
   return await synchronizeUserList();
 }
 

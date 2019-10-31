@@ -151,7 +151,8 @@ async function handleCommands(text, theEvent, res) {
       }
 
       // TODO: look up more info about slack user when I update from slack sdk v4 to v5
-      return await createUser({ name: githubUserName, id: theEvent.user }, theEvent.user, githubUserName) // TODO: Grab all needed info
+      // Change first param to name based on looked up slack info
+      return await createUser(githubUserName, { name: githubUserName, id: theEvent.user }, githubUserName) // TODO: Grab all needed info
         .then(() => {
           return sendToChannel(theEvent.channel, 'You are now registered, now git slackin\'!');
         });
