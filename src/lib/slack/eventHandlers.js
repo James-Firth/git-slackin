@@ -150,11 +150,8 @@ async function handleCommands(text, theEvent, res) {
           ' That github username is already registered to someone else. (Weird!)');
       }
 
-
-      // name, slack { id, name}, githubUsername,
-      // may need to look up more info about slack user
-      // confirm github user exists
-      return await createUser('Default Name', theEvent.user, githubUserName) // TODO: Grab all needed info
+      // TODO: look up more info about slack user when I update from slack sdk v4 to v5
+      return await createUser({ name: githubUserName, id: theEvent.user }, theEvent.user, githubUserName) // TODO: Grab all needed info
         .then(() => {
           return sendToChannel(theEvent.channel, 'You are now registered, now git slackin\'!');
         });
