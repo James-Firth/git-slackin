@@ -239,7 +239,7 @@ function verify(headers, body) {
   const timestamp = headers['x-slack-request-timestamp'];
   const providedSignature = headers['x-slack-signature'];
   const secret = config.get('slack_signing_secret');
-  const now = Date.now();
+  const now = Date.now() / 1000;
   if (Math.abs(now - timestamp) > (60 * 5)) {
     logger.warn(`[Verify] ${timestamp} is much older than 5 minutes (now: ${now} disallow message.)`);
     return false;
