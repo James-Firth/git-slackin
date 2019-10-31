@@ -245,10 +245,10 @@ function verify(headers, body) {
     return false;
   }
 
-  const toHash = `v0:${timestamp}:${body}`;
+  const sigBaseString = `v0:${timestamp}:${body}`;
   const hmacComputer = crypto.createHmac('sha256', secret);
-  hmacComputer.update(toHash);
-  const calculatedSignature = hmacComputer.digest('hex');
+  hmacComputer.update(sigBaseString);
+  const calculatedSignature = `v0=${hmacComputer.digest('hex')}`;
 
   logger.debug(`Signature:\n${calculatedSignature}\n${providedSignature}`);
   return calculatedSignature === providedSignature;
