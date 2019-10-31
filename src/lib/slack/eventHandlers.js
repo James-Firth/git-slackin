@@ -136,7 +136,7 @@ async function handleCommands(text, theEvent, res) {
 
       // Grab the username, either from the URL or directly
       let githubUserName = registerRegexResult[1];
-      if (githubRegexResults.length === 2) {
+      if (githubRegexResults && githubRegexResults.length === 2) {
         githubUserName = githubRegexResults[1];
       }
 
