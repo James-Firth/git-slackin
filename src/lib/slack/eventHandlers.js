@@ -2,8 +2,8 @@ const logger = require('../../logger');
 const config = require('config');
 const common = require('./common');
 const { sendToChannel, sendEphemeralMessage, send } = require('./message');
-const { benchUserBySlackId, activateUserBySlackId, findBySlackUserId,
-  muteNotificationsBySlackId, unmuteNotificationsBySlackId } = require('../users');
+const { benchUserBySlackId, activateUserBySlackId, findByGithubName, findBySlackUserId,
+  muteNotificationsBySlackId, unmuteNotificationsBySlackId, createUser } = require('../users');
 const appRoot = require('app-root-path');
 const fs = require('fs');
 const configFile = `${appRoot}/config/development.json`;
@@ -125,6 +125,41 @@ async function handleAdminCommands(command, theEvent, res) {
 
 async function handleCommands(text, theEvent, res) {
   const smallText = text.toLowerCase();
+
+  if (/^register/.test(smallText)) {
+    logger.info(`[DM Event] Registration Begin: ${theEvent.user}`);
+    const registerRegexResult = /^register(?:\s(.+))?$/.exec(smallText);
+    if (registerRegexResult && registerRegexResult.length === 2) {
+      // TODO: Add support for github url instead of just username
+      const githubUserRegex = /http[s]*:\/\/github.com\/([a-zA-Z-]+)\//g;
+      const githubRegexResults = githubUserRegex.exec(registerRegexResult[1]);
+
+      let githubUserName = registerRegexResult[1];
+      if (githubRegexResults.length !== 2) {
+        githubUserName = githubRegexResults[1];
+      }
+      const preexistingUser = await findByGithubName(githubUserName);
+      if (preexistingUser) {
+        const preexistingUserSlackName = preexistingUser.slack ? preexistingUser.slack.name : 'SOMEONE';
+        logger.error(`[DM Event] Cannot register twice! ${preexistingUser.github} ` +
+          `is already registered to ${preexistingUserSlackName}`);
+        return sendToChannel(theEvent.channel, 'Registration failed.' +
+          ' That github username is already registered to someone else. (Weird!)');
+      }
+
+
+      // name, slack { id, name}, githubUsername,
+      // may need to look up more info about slack user
+      // confirm github user exists
+      return await createUser('Default Name', theEvent.user, githubUserName) // TODO: Grab all needed info
+        .then(() => {
+          return sendToChannel(theEvent.channel, 'You are now registered, now git slackin\'!');
+        });
+    } else {
+      logger.error('[DM Event] Registration Failed: no username specified.');
+      return sendToChannel(theEvent.channel, 'Registration failed, github username not specified.');
+    }
+  }
 
   if (smallText === 'ping') {
     logger.info(`[DM Event] ${theEvent.user} is playing ping-pong`);
