@@ -129,17 +129,20 @@ async function handleCommands(text, theEvent, res) {
   if (/^register/.test(smallText)) {
     logger.info(`[DM Event] Registration Begin: ${theEvent.user}`);
     const registerRegexResult = /^register(?:\s(.+))?$/.exec(smallText);
+    const githubUserRegex = /http[s]*:\/\/github.com\/([a-zA-Z-]+)\//g;
+
     if (registerRegexResult && registerRegexResult.length === 2) {
-      // TODO: Add support for github url instead of just username
-      const githubUserRegex = /http[s]*:\/\/github.com\/([a-zA-Z-]+)\//g;
       const githubRegexResults = githubUserRegex.exec(registerRegexResult[1]);
 
+      // Grab the username, either from the URL or directly
       let githubUserName = registerRegexResult[1];
-      if (githubRegexResults.length !== 2) {
+      if (githubRegexResults.length === 2) {
         githubUserName = githubRegexResults[1];
       }
+
       const preexistingUser = await findByGithubName(githubUserName);
-      if (preexistingUser) {
+
+      if (preexistingUser !== null) {
         const preexistingUserSlackName = preexistingUser.slack ? preexistingUser.slack.name : 'SOMEONE';
         logger.error(`[DM Event] Cannot register twice! ${preexistingUser.github} ` +
           `is already registered to ${preexistingUserSlackName}`);
