@@ -88,12 +88,17 @@ async function handleAdminCommands(command, theEvent, res, logId) {
   if (/^bench/.test(command)) {
     const slackUserIdToBench = common.findUserMention(command);
     if (!slackUserIdToBench) {
+      logger.warn(`[commands.admin.bench:${logId}] Could not find user to user ${slackUserIdToBench}`);
 
+      return await sendEphemeralMessage(theEvent.channel, theEvent.user,
+        `:whatsgoingon: I could not find the user '<@${slackUserIdToBench}>' to bench. ` +
+        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``);
     }
+
     const success = await benchUserBySlackId(slackUserIdToBench, logId);
 
     if (success) {
-      send(slackUserIdToBench, `You have been benched by <@${theEvent.user}>. ` +
+      await send(slackUserIdToBench, `You have been benched by <@${theEvent.user}>. ` +
       'Send me, Git Slackin, `start` to start receiving Review Requests again.');
 
       return await sendEphemeralMessage(theEvent.channel, theEvent.user,
@@ -110,6 +115,14 @@ async function handleAdminCommands(command, theEvent, res, logId) {
 
   if (/^unbench/.test(command)) {
     const slackUserIdToUnbench = common.findUserMention(command);
+    if (!slackUserIdToUnbench) {
+      logger.warn(`[commands.admin.bench:${logId}] Could not find user to user ${slackUserIdToUnbench}`);
+
+      return await sendEphemeralMessage(theEvent.channel, theEvent.user,
+        `:whatsgoingon: I could not find the user '<@${slackUserIdToUnbench}>' to unbench. ` +
+        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``);
+    }
+
     const success = await activateUserBySlackId(slackUserIdToUnbench, logId);
 
     if (success) {

@@ -123,7 +123,7 @@ async function prOpened(body) {
     const opener = await findByGithubName(body.pull_request.user.login, logId);
     const wipRegex = /^\[*\s*WIP\s*\]*\s+/gi;
     if (wipRegex.test(body.pull_request.title) && opener) {
-      send(opener,
+      return send(opener,
         `Are you sure you meant to open PR <${body.pull_request.html_url}|${body.pull_request.title}>? ` +
         'You marked it Work in Progress. So I will ignore it');
     }

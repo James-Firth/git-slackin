@@ -92,13 +92,21 @@ async function silenced(user) {
 // just using the user ID sends the message via @slackbot instead.
 async function sendDM(userId, message, { force = false } = {}) {
   const user = await findBySlackUserId(userId);
-  const cannotSend = await silenced(user);
-  if (cannotSend && !force) return logger.info(`[DM] Shh ${user.name} should not be bothered`);
+  if (user) {
+    const cannotSend = await silenced(user);
+    if (cannotSend && !force) return logger.info(`[DM] Shh ${user.name} should not be bothered`);
 
-  return openDM(userId)
-    .then(dmChannelId => {
-      return sendMessage(dmChannelId, message);
-    });
+    return openDM(userId)
+      .then(dmChannelId => {
+        return sendMessage(dmChannelId, message);
+      })
+      .then(result => {
+        return true;
+      });
+  } else {
+    logger.error('[slack.message.sendDM] Could not find user to message');
+    return false;
+  }
 }
 
 
