@@ -51,7 +51,7 @@ async function updateGitSlackin(theEvent, branch = 'master') {
     });
 }
 
-async function handleAdminCommands(command, theEvent, res) {
+async function handleAdminCommands(command, theEvent, res, logId) {
   if (!config.has('slack_manager_ids')
     || !config.get('slack_manager_ids').includes(theEvent.user)) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only or does not exist.');
@@ -87,7 +87,10 @@ async function handleAdminCommands(command, theEvent, res) {
 
   if (/^bench/.test(command)) {
     const slackUserIdToBench = common.findUserMention(command);
-    const success = await benchUserBySlackId(slackUserIdToBench);
+    if (!slackUserIdToBench) {
+
+    }
+    const success = await benchUserBySlackId(slackUserIdToBench, logId);
 
     if (success) {
       send(slackUserIdToBench, `You have been benched by <@${theEvent.user}>. ` +
@@ -107,7 +110,7 @@ async function handleAdminCommands(command, theEvent, res) {
 
   if (/^unbench/.test(command)) {
     const slackUserIdToUnbench = common.findUserMention(command);
-    const success = await activateUserBySlackId(slackUserIdToUnbench);
+    const success = await activateUserBySlackId(slackUserIdToUnbench, logId);
 
     if (success) {
       send(slackUserIdToUnbench, `You have been unbenched by <@${theEvent.user}>. ` +
@@ -203,7 +206,7 @@ async function handleCommands(text, theEvent, res, logId = 'NoId') {
 
   if (smallText === 'stop') {
     logger.info(`[commands.user.stop:${logId}] ${theEvent.user} benched themselves.`);
-    const success = benchUserBySlackId(theEvent.user);
+    const success = benchUserBySlackId(theEvent.user, logId);
     if (success) {
       return sendEphemeralMessage(theEvent.channel, theEvent.user,
         'You are now benched and are unrequestable :no:');
@@ -215,14 +218,14 @@ async function handleCommands(text, theEvent, res, logId = 'NoId') {
 
   if (smallText === 'silence' || smallText === 'mute') {
     logger.info(`[commands.user.notifications.off:${logId}] ${theEvent.user} turned off notifications`);
-    muteNotificationsBySlackId(theEvent.user);
+    muteNotificationsBySlackId(theEvent.user, logId); // TODO: Mimic benchuserBySlackId
     return sendEphemeralMessage(theEvent.channel, theEvent.user,
       'Your Git Slackin notifications are now muted :no_bell:');
   }
 
   if (smallText === 'notify' || smallText === 'unmute') {
     logger.info(`[command.user.notification.on:${logId}] ${theEvent.user} turned on notifications`);
-    unmuteNotificationsBySlackId(theEvent.user);
+    unmuteNotificationsBySlackId(theEvent.user, logId); // TODO: Mimic benchuserBySlackId
     return sendEphemeralMessage(theEvent.channel, theEvent.user,
       'Your Git Slackin notifications are now unmuted :bell:');
   }
@@ -265,7 +268,7 @@ async function handleCommands(text, theEvent, res, logId = 'NoId') {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, 'Sorry, I cannot currently add more reviewers');
   }
 
-  return handleAdminCommands(smallText, theEvent, res);
+  return handleAdminCommands(smallText, theEvent, res, logId);
 }
 
 async function handleDM(theEvent, res, logId) {
