@@ -54,12 +54,20 @@ async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
 }
 
 // Look up a single user quickly or return null for easy comparisons
-async function findByGithubName(name) {
+async function findByGithubName(name, logId) {
+  if (!name) {
+    logger.warn(`[users.findByGithubName:${logId}] Must pass name`);
+    return null;
+  }
   return users.find(element => element.github && element.github.toLowerCase() === name.toLowerCase()) || null;
 }
 
 // Look up a single user quickly or return null for easy comparisons
-async function findBySlackUserId(slackId) {
+async function findBySlackUserId(slackId, logId) {
+  if (!slackId) {
+    logger.warn(`[users.findBySlackUserId:${logId}] Must pass slack id`);
+    return null;
+  }
   return users.find((element) => {
     return element.slack && element.slack.id && element.slack.id.toLowerCase() === slackId.toLowerCase();
   }) || null;

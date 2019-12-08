@@ -162,7 +162,7 @@ async function handleCommands(text, theEvent, res, logId = 'NoId') {
         githubUserName = githubRegexResults[1];
       }
 
-      const preexistingUser = await findByGithubName(githubUserName);
+      const preexistingUser = await findByGithubName(githubUserName, logId);
 
       if (preexistingUser !== null) {
         const preexistingUserSlackName = preexistingUser.slack ? preexistingUser.slack.name : 'SOMEONE';
