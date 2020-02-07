@@ -178,10 +178,8 @@ async function handleCommands(text, theEvent, res, logId = 'NoId') {
       const preexistingUser = await findByGithubName(githubUserName, logId);
 
       if (preexistingUser !== null) {
-        const preexistingUserSlackName = preexistingUser.slack ? preexistingUser.slack.name : 'SOMEONE';
-
         logger.error(`[commands.user.register:${logId}] Cannot register twice! ${preexistingUser.github} ` +
-          `is already registered to ${preexistingUserSlackName}`);
+          `is already registered to <@${preexistingUser.slack_id}>`);
         return sendToChannel(theEvent.channel, 'Registration failed.' +
           ' That github username is already registered to someone else. (Weird!)' +
           ` If you think this incorrect, please message James and refer to log code: ${logId}`);

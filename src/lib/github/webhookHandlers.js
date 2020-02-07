@@ -4,7 +4,7 @@ const shortid = require('shortid');
 
 // My Modules
 const logger = require('../../logger');
-const { selectRandomGithubUsersNot, findByGithubName, filterUsers } = require('../users');
+const { selectRandomGithubUsersNot, findByGithubName, fetchMergers } = require('../users');
 const { send } = require('../slack/message');
 
 // Number of reviewers required for our workflow. Could move to config eventually.
@@ -154,7 +154,7 @@ async function prOpened(body) {
 }
 
 async function notifyMergers(msg) {
-  const mergers = await filterUsers({ prop: 'merger', val: true });
+  const mergers = await fetchMergers();
   const promises = mergers.map(user => send(user.slack.id, msg));
   return await Promise.all(promises);
 }
