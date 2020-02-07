@@ -30,8 +30,9 @@ async function updateConfigurations(configOverrides) {
 // especially if changing branches.
 async function updateGitSlackin(theEvent, branch = 'master') {
   let updateResult = null;
+
   try {
-    // Let's discard these changes first.
+    // Discard any unstaged changes.
     await simpleGit.stash();
     await simpleGit.stash(['drop']);
 
@@ -43,17 +44,17 @@ async function updateGitSlackin(theEvent, branch = 'master') {
   }
 
   const triggeringUser = await findBySlackUserId(theEvent.user);
-  return sendToChannel(theEvent.channel, `Update trigger by ${triggeringUser.name}. Be back shortly! :wave:\n` +
-  `Changes: ${updateResult}`)
-    .then(() => {
-      // this works since we've already pulled so restarting should work.
-      return process.exit(0);
-    });
+
+  const message = `Update trigger by ${triggeringUser.name}. Be back shortly! :wave:\nChanges: ${updateResult}`;
+  await sendToChannel(theEvent.channel, message);
+
+  // This works since we've already pulled so restarting should work.
+  return process.exit(0);
 }
 
 async function handleAdminCommands(command, theEvent, res, logId) {
-  if (!config.has('slack_manager_ids')
-    || !config.get('slack_manager_ids').includes(theEvent.user)) {
+  if (!config.has('slack_manager_ids') ||
+      !config.get('slack_manager_ids').includes(theEvent.user)) {
     return sendEphemeralMessage(theEvent.channel, theEvent.user, 'This command is Admin-only or does not exist.');
   }
 
@@ -71,10 +72,8 @@ async function handleAdminCommands(command, theEvent, res, logId) {
     try {
       const newConfig = JSON.parse(setConfigRegexResult[1]);
       await updateConfigurations(newConfig);
-      return await sendToChannel(theEvent.channel, 'Updated config, restarting Git Slackin...')
-        .then(() => {
-          return process.exit(0);
-        });
+      await sendToChannel(theEvent.channel, 'Updated config, restarting Git Slackin...');
+      return process.exit(0);
     } catch (e) {
       return sendEphemeralMessage(theEvent.channel, theEvent.user, 'Error updating configuration');
     }
@@ -90,26 +89,33 @@ async function handleAdminCommands(command, theEvent, res, logId) {
     if (!slackUserIdToBench) {
       logger.warn(`[commands.admin.bench:${logId}] Could not find user to user ${slackUserIdToBench}`);
 
-      return await sendEphemeralMessage(theEvent.channel, theEvent.user,
-        `:whatsgoingon: I could not find the user '<@${slackUserIdToBench}>' to bench. ` +
-        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``);
+      const failureMessage = `:whatsgoingon: I could not find the user '<@${slackUserIdToBench}>' to bench. ` +
+        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``;
+
+      return await sendEphemeralMessage(theEvent.channel, theEvent.user, failureMessage);
     }
 
     const success = await benchUserBySlackId(slackUserIdToBench, logId);
 
     if (success) {
-      await send(slackUserIdToBench, `You have been benched by <@${theEvent.user}>. ` +
-      'Send me, Git Slackin, `start` to start receiving Review Requests again.');
+      const responseMessage = `I have benched <@${slackUserIdToBench}> as requested.`;
+      const benchedUserMessage = `You have been benched by <@${theEvent.user}>. ` +
+        'Send me, Git Slackin, `start` to start receiving Review Requests again.';
 
-      return await sendEphemeralMessage(theEvent.channel, theEvent.user,
-        `I have benched <@${slackUserIdToBench}> as requested.`);
+      const [, result] = await Promise.all([
+        send(slackUserIdToBench, benchedUserMessage),
+        sendEphemeralMessage(theEvent.channel, theEvent.user, responseMessage),
+      ]);
+
+      return result;
     } else {
       const logId = shortid.generate();
       logger.warn(`[commands.admin.bench:${logId}] Could not bench user ${slackUserIdToBench}`);
 
-      return await sendEphemeralMessage(theEvent.channel, theEvent.user,
-        `:whatsgoingon: I could not bench <@${slackUserIdToBench}> as requested. ` +
-        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``);
+      const failureMessage = `:whatsgoingon: I could not bench <@${slackUserIdToBench}> as requested. ` +
+        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``;
+
+      return await sendEphemeralMessage(theEvent.channel, theEvent.user, failureMessage);
     }
   }
 
@@ -118,26 +124,33 @@ async function handleAdminCommands(command, theEvent, res, logId) {
     if (!slackUserIdToUnbench) {
       logger.warn(`[commands.admin.bench:${logId}] Could not find user to user ${slackUserIdToUnbench}`);
 
-      return await sendEphemeralMessage(theEvent.channel, theEvent.user,
-        `:whatsgoingon: I could not find the user '<@${slackUserIdToUnbench}>' to unbench. ` +
-        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``);
+      const failureMessage = `:whatsgoingon: I could not find the user '<@${slackUserIdToUnbench}>'. ` +
+        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``;
+
+      return await sendEphemeralMessage(theEvent.channel, theEvent.user, failureMessage);
     }
 
     const success = await activateUserBySlackId(slackUserIdToUnbench, logId);
 
     if (success) {
-      send(slackUserIdToUnbench, `You have been unbenched by <@${theEvent.user}>. ` +
-      'Send me, Git Slackin, `start` to start receiving Review Requests again.');
+      const responseMessage = `I have unbenched <@${slackUserIdToUnbench}> as requested.`;
+      const unbenchedUserMessage = `You have been unbenched by <@${theEvent.user}>. ` +
+      'Send me, Git Slackin, `start` to start receiving Review Requests again.';
 
-      return sendEphemeralMessage(theEvent.channel, theEvent.user,
-        `I have unbenched <@${slackUserIdToUnbench}> as requested.`);
+      const [, result] = await Promise.all([
+        send(slackUserIdToUnbench, unbenchedUserMessage),
+        sendEphemeralMessage(theEvent.channel, theEvent.user, responseMessage),
+      ]);
+
+      return result;
     } else {
       const logId = shortid.generate();
       logger.warn(`[commands.admin.unbench:${logId}] Could not unbench user: ${slackUserIdToUnbench}`);
 
-      return await sendEphemeralMessage(theEvent.channel, theEvent.user,
-        `:whatsgoingon: I could not unbench <@${slackUserIdToUnbench}> as requested. ` +
-        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``);
+      const failureMessage = `:whatsgoingon: I could not unbench <@${slackUserIdToUnbench}> as requested. ` +
+        `Please inform James if you think this is a bug. And refer to log code: \`${logId}\``;
+
+      return await sendEphemeralMessage(theEvent.channel, theEvent.user, failureMessage);
     }
   }
 
@@ -151,10 +164,7 @@ async function handleAdminCommands(command, theEvent, res, logId) {
 
   if (command === 'shutdown') {
     logger.info(`[ADMIN Event] ${theEvent.user} requested shutdown`);
-    return sendToChannel(theEvent.channel, 'Shutting down!')
-      .then(() => {
-        return process.exit(0);
-      });
+    return sendToChannel(theEvent.channel, 'Shutting down!').then(() => process.exit(0));
   }
 }
 
@@ -259,7 +269,9 @@ async function handleCommands(text, theEvent, res, logId = 'NoId') {
   }
   if (smallText === 'status') {
     const user = await findBySlackUserId(theEvent.user);
+
     logger.info(`[commands.user.status:${logId}] ${theEvent.user} requested their status.`);
+
     return sendEphemeralMessage(theEvent.channel, theEvent.user, `You are <@${user.slack.id}> here and ` +
     `<https://github.com/${user.github}|@${user.github}> on GitHub.\n` +
     `Your current Git Slackin' status is: ${user.requestable ? 'Requestable :yes:' : 'UnRequestable :no:'}.\n` +

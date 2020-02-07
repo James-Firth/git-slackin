@@ -48,9 +48,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Basic web server to handle payloads
 app.post('/payload', (req, res) => {
-  if (req.headers['x-github-event'] === 'pull_request' ||
-  req.headers['x-github-event'] === 'pull_request_review' ||
-  req.headers['x-github-event'] === 'pull_request_review_comment') {
+  const eventType = req.headers['x-github-event'];
+
+  if (eventType === 'pull_request' ||
+      eventType === 'pull_request_review' ||
+      eventType === 'pull_request_review_comment') {
     return githubWebhooks.handle(req.body, {
       signature: req.headers['x-hub-signature'],
       webhookId: req.headers['x-github-delivery'],
@@ -100,17 +102,15 @@ http.createServer(app)
     logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
   });
 
-if (!process.env.GS_INSECURE) {
-  https.createServer({
-    key: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'key.pem')),
-    cert: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'cert.pem')),
-    ca: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'chain.pem')),
-  }, app)
-    .listen(httpsPort, (err) => {
-      if (err) {
-        return logger.error('something bad happened', err);
-      }
+https.createServer({
+  key: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'cert.pem')),
+  ca: fs.readFileSync(path.join(__dirname, '..', 'letsencrypt', 'chain.pem')),
+}, app)
+  .listen(httpsPort, (err) => {
+    if (err) {
+      return logger.error('something bad happened', err);
+    }
 
-      logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
-    });
-}
+    logger.info(`server is listening on ${port} in mode: ${process.env.NODE_ENV}`);
+  });

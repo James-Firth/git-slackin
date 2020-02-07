@@ -106,7 +106,9 @@ async function benchUserBySlackId(id, logId) {
     }
     return user;
   });
+
   await synchronizeUserList();
+
   if (updated) {
     logger.info(`[users.benchUserBySlackId:${logId}] Benched user: ${id}. user_list file`);
   } else {
@@ -127,7 +129,9 @@ async function activateUserBySlackId(id, logId) {
     }
     return user;
   });
+
   await synchronizeUserList();
+
   if (updated) {
     logger.info(`[users.activateUserBySlackId:${logId}] Benched user: ${id}. user_list file`);
   } else {
@@ -143,9 +147,12 @@ async function muteNotificationsBySlackId(id, logId) {
     if (user.slack && user.slack.id.toLowerCase() === id.toLowerCase()) {
       user.notifications = false;
     }
+
     return user;
   });
+
   await synchronizeUserList();
+
   logger.info('[USERS] Update user_list file');
   return users;
 }
@@ -157,24 +164,29 @@ async function unmuteNotificationsBySlackId(id, logId) {
     if (user.slack && user.slack.id.toLowerCase() === id.toLowerCase()) {
       user.notifications = true;
     }
+
     return user;
   });
+
   await synchronizeUserList();
+
   return users;
 }
 
 async function listAllUserNamesByAvailability() {
-  const availableUsers = await listAvailableUsers(true);
-  const benchedUsers = await listBenchedUsers(true);
+  const [available, benched] = await Promise.all([
+    listAvailableUsers(true),
+    listBenchedUsers(true),
+  ]);
 
-  let availableUsersString = availableUsers.join();
-  let benchedUsersString = benchedUsers.join();
-  if (availableUsersString.length === 0) availableUsersString = 'None';
-  if (benchedUsersString.length === 0) benchedUsersString = 'None';
+  const toString = (arr) => {
+    if (arr.length === 0) return 'None';
+    return arr.join();
+  };
 
   return {
-    available: availableUsersString,
-    benched: benchedUsersString,
+    available: toString(available),
+    benched: toString(benched),
   };
 }
 
