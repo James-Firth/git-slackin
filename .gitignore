@@ -10,3 +10,6 @@ user_list.json
 
 # Logs
 *.log
+
+# DBs
+*.sqlite

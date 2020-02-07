@@ -10,15 +10,19 @@ async function createUser(
   name, slackInfo, githubUsername,
   { requestable = true, merger = false, review_action = 'respond', notifications = true } = {}
 ) {
-  const newUser = await User.create({
+  const params = {
     name,
     slack_id: slackInfo.id,
-    github: githubUsername.toLowerCase(),
     requestable,
     merger,
     review_action,
     notifications,
-  });
+  }
+  if (githubUsername) {
+    params.github = githubUsername.toLowerCase(),
+  }
+
+  const newUser = await User.create(params);
 
   logger.info(`[USERS] New User created: ${JSON.stringify(newUser)}`);
   return newUser;

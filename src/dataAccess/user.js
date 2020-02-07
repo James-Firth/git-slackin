@@ -1,5 +1,4 @@
-const Sequelize = require('sequelize');
-const Model = Sequelize.Model;
+const { DataTypes, Model } = require('sequelize');
 const sequelize = require('./db_connection');
 
 class User extends Model {}
@@ -7,36 +6,36 @@ User
   .init({
     // attributes
     name: {
-      type: Sequelize.STRING,
-      allowNull: false,
+      type: DataTypes.STRING,
+      defaultValue: 'NoName',
     },
     requestable: {
-      type: Sequelize.BOOLEAN,
+      type: DataTypes.BOOLEAN,
     },
     github: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
       unique: true,
     },
     slack_id: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
       unique: true,
     },
     merger: {
-      type: Sequelize.BOOLEAN,
+      type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
     review_action: {
-      type: Sequelize.STRING,
+      type: DataTypes.STRING,
       defaultValue: 'respond',
     },
-    notifcations: {
-      type: Sequelize.BOOLEAN,
+    notifications: {
+      type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
   },
   {
     sequelize,
-    modelName: 'user',
+    modelName: 'User',
     // options
   });
 

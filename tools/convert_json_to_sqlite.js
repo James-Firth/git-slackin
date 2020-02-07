@@ -1,76 +1,109 @@
-const jsonList = require('./git-slackin/user_list.json');
-const Sequelize = require('sequelize');
-const Model = Sequelize.Model;
+const jsonList = require('../user_list.json');
+const { Sequelize, Model, DataTypes } = require('sequelize');
 
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: './database/..itslackin.sqlite',
-});
-
-console.log('Initializing DB...');
-sequelize.authenticate()
-  .then(() => console.log('connected!'))
-  .catch(err => console.error(err));
+let sequelize;
 
 class User extends Model {}
-User
-  .init({
-    // attributes
-    name: {
-      type: Sequelize.STRING,
-      allowNull: false,
-    },
-    requestable: {
-      type: Sequelize.BOOLEAN,
-    },
-    github: {
-      type: Sequelize.STRING,
-      unique: true,
-    },
-    slack_id: {
-      type: Sequelize.STRING,
-      unique: true,
-    },
-    merger: {
-      type: Sequelize.BOOLEAN,
-      defaultValue: false,
-    },
-    review_action: {
-      type: Sequelize.STRING,
-      defaultValue: 'respond',
-    },
-    notifcations: {
-      type: Sequelize.BOOLEAN,
-      defaultValue: true,
-    },
-  },
-  {
-    sequelize,
-    modelName: 'user',
-    // options
+
+async function connectToDB() {
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: '../database/gitslackin.sqlite',
   });
 
-User.sync({ force: true });
+  User
+    .init({
+      // attributes
+      name: {
+        type: DataTypes.STRING,
+        defaultValue: 'NoName',
+      },
+      requestable: {
+        type: DataTypes.BOOLEAN,
+      },
+      github: {
+        type: DataTypes.STRING,
+        // unique: true,
+      },
+      slack_id: {
+        type: DataTypes.STRING,
+        // unique: true,
+      },
+      merger: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+      },
+      review_action: {
+        type: DataTypes.STRING,
+        defaultValue: 'respond',
+      },
+      notifications: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: true,
+      },
+    },
+    {
+      sequelize,
+      modelName: 'User',
+    // options
+    });
 
-const dbUsers = [];
-async function doDBStuff() {
-  for (const user in jsonList) {
-    const dbUserParams = {
-      name: user.name,
-      github: user.github.toLowerCase(),
-      requestable: user.requestable,
-      merger: user.merger,
-      review_action: user.review_action,
-      notifications: user.notifications,
-    };
-    const newUser = await User.create(dbUserParams);
-    dbUsers.push(newUser);
-  }
-  console.log('sync all new models...');
-  await sequelize.sync();
-  console.log('sync complete!');
+  console.log('SYNC DB MODEL');
+  const res = await User.sync({ force: true });
+  console.log(res);
+  console.log('Initializing DB...');
+  return await sequelize.authenticate()
+    .then(() => console.log('connected!'))
+    .catch(err => { console.error('waaaat'); console.error(err); });
 }
 
-console.log('starting db stuff');
-doDBStuff();
-console.log('finish db stuff');
+const dbUsers = [];
+
+async function convertUser(user) {
+  const dbUserParams = {
+    name: user.name,
+    requestable: user.requestable,
+    merger: user.merger,
+    review_action: user.review_action,
+    notifications: user.notifications ? user.notifications : true,
+  };
+  if (user.github) {
+    dbUserParams.github = user.github.toLowerCase();
+  }
+  if (user.slack && user.slack.id) {
+    dbUserParams.slack_id = user.slack.id;
+  }
+  const newUser = await User.create(dbUserParams);
+  console.log('New user created');
+  console.log(newUser);
+  return newUser;
+}
+
+function convert() {
+  return Promise.all(jsonList.map(user => convertUser(user)));
+}
+
+(async() => {
+  try {
+    console.log('START CONNECT');
+    await connectToDB();
+    console.log('FINISH CONNECT');
+  } catch (e) {
+    console.error('CONNECT ERROR');
+    throw e;
+  }
+
+  try {
+    console.log('CONVERT');
+    await convert();
+  } catch (e) {
+    console.error('ERROR');
+    throw e;
+  }
+
+  console.log('ALL GOOD');
+})().catch(e => {
+  console.error('error');
+  console.error(e);
+});
+
