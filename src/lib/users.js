@@ -17,9 +17,9 @@ async function createUser(
     merger,
     review_action,
     notifications,
-  }
+  };
   if (githubUsername) {
-    params.github = githubUsername.toLowerCase(),
+    params.github = githubUsername.toLowerCase();
   }
 
   const newUser = await User.create(params);
