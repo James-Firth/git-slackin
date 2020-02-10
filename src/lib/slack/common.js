@@ -5,7 +5,7 @@ const simpleGit = require('simple-git/promise')(appRoot.path);
 const users = require('../users');
 
 async function generateAndSendBootMessage(channel = null, { msgText = null } = {}) {
-  const [{ availableUsers, benchedUsers }, SHA] = await Promise.all([
+  const [{ available, benched }, SHA] = await Promise.all([
     users.listAllUserNamesByAvailability(),
     simpleGit.revparse(['HEAD']),
   ]);
@@ -16,12 +16,12 @@ async function generateAndSendBootMessage(channel = null, { msgText = null } = {
       {
         text: '',
         color: 'good',
-        fields: [{ title: 'Available Users', value: availableUsers }],
+        fields: [{ title: 'Available Users', value: available }],
       },
       {
         text: '',
         color: 'warning',
-        fields: [{ title: 'Benched Users', value: benchedUsers }],
+        fields: [{ title: 'Benched Users', value: benched }],
       },
     ],
   };
@@ -29,7 +29,7 @@ async function generateAndSendBootMessage(channel = null, { msgText = null } = {
   if (channel && typeof channel === 'string') {
     return messenger.sendToChannel(channel, messageObject, { force: true });
   } else {
-    logger.info(`Available Users: ${availableUsers}\nBenched Users: ${benchedUsers}`);
+    logger.info(`Available Users: ${available}\nBenched Users: ${benched}`);
   }
 }
 
