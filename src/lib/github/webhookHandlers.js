@@ -4,7 +4,7 @@ const shortid = require('shortid');
 
 // My Modules
 const logger = require('../../logger');
-const { selectRandomGithubUsersNot, findByGithubName, filterUsers } = require('../users');
+const { selectRandomGithubUsers, findByGithubName, filterUsers } = require('../users');
 const { send } = require('../slack/message');
 
 // Number of reviewers required for our workflow. Could move to config eventually.
@@ -79,7 +79,7 @@ async function requestReviewersAndAssignees(users, body) {
   try {
     const githubUsers = users.map(user => user.github);
 
-    // Should probably look at the results to check if reviewres are there.
+    // Should probably look at the results to check if reviewers are there.
     const reviewRequests = await octokit.pullRequests.createReviewRequest({
       owner: body.pull_request.base.repo.owner.login,
       repo: body.pull_request.base.repo.name,
@@ -136,7 +136,7 @@ async function prOpened(body) {
       return findByGithubName(user.login, logId);
     }));
     const notTheseUsers = opener ? preselectedUsers.concat(opener.github) : preselectedUsers;
-    const randomUsers = await selectRandomGithubUsersNot(notTheseUsers, numReviewersToRandomlySelect);
+    const randomUsers = await selectRandomGithubUsers(notTheseUsers, body.repository.full_name, numReviewersToRandomlySelect);
     const users = preselectedUsers.concat(randomUsers);
 
     // TODO: Handle it better if either fails
