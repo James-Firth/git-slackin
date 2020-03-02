@@ -4,18 +4,18 @@ const http = require('http');
 const https = require('https'); // TODO: Use this to serve up HTTPS properly
 const fs = require('fs');
 const path = require('path');
-const port = 8778;
-const httpsPort = 8779;
 const bodyParser = require('body-parser');
 const config = require('config');
 const logger = require('./logger');
-// My modules
+
 const githubWebhooks = require('./lib/github/webhookRouter');
 const slackAction = require('./lib/slack/actionHandlers');
 const slackEventHandler = require('./lib/slack/eventHandlers');
 const slackCommon = require('./lib/slack/common');
 const { openDM } = require('./lib/slack/message');
-// Bootup message stuff
+
+const port = 8778;
+const httpsPort = 8779;
 
 // Handle errors (see `errorCodes` export)
 
