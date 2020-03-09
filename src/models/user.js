@@ -1,9 +1,6 @@
-const { DataTypes, Model } = require('sequelize');
-const sequelize = require('./db_connection');
-
-class User extends Model {}
-User
-  .init({
+'use strict';
+module.exports = (sequelize, DataTypes) => {
+  const User = sequelize.define('User', {
     // attributes
     name: {
       type: DataTypes.STRING,
@@ -32,13 +29,9 @@ User
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
-  },
-  {
-    sequelize,
-    modelName: 'User',
-    // options
-  });
-
-User.sync({ force: true });
-
-module.exports = User;
+  }, {});
+  User.associate = function(models) {
+    // associations can be defined here
+  };
+  return User;
+};

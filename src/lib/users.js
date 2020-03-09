@@ -1,6 +1,4 @@
-const appRoot = require('app-root-path');
-const fs = require('fs');
-const { User } = require('../dataAccess');
+const User = require('../models').User;
 const Sequelize = require('sequelize');
 const Op = Sequelize.Op;
 const logger = require('../logger');
