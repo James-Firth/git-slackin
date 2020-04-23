@@ -202,7 +202,7 @@ async function listAllUserNamesByAvailability() {
 
 module.exports = {
   createUser,
-  selectRandomGithubUsersNot,
+  selectRandomGithubUsers,
   findByGithubName,
   findBySlackUserId,
   fetchMergers,
