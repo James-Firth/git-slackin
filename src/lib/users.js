@@ -1,4 +1,4 @@
-const User = require('../models').User;
+const { User, sequelize } = require('../models');
 const Sequelize = require('sequelize');
 const Op = Sequelize.Op;
 const logger = require('../logger');
@@ -29,10 +29,10 @@ async function createUser(
 // Randomly select <numUsers> github users that are not <notMe>
 async function selectRandomGithubUsersNot(notMe, numUsers = 1) {
   return await User.findAll({
-    order: Sequelize.random(),
+    order: sequelize.random(),
     where: {
-      [Op.not]: {
-        id: notMe,
+      id: {
+        [Op.notIn]: notMe,
       },
     },
     limit: numUsers,
