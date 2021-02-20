@@ -48,9 +48,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Basic web server to handle payloads
 app.post('/payload', (req, res) => {
-  if (req.headers['x-github-event'] === 'pull_request' ||
-    req.headers['x-github-event'] === 'pull_request_review' ||
-    req.headers['x-github-event'] === 'pull_request_review_comment') {
+  const eventType = req.headers['x-github-event'];
+
+  if (eventType === 'pull_request' ||
+      eventType === 'pull_request_review' ||
+      eventType === 'pull_request_review_comment') {
     return githubWebhooks.handle(req.body, {
       signature: req.headers['x-hub-signature'],
       webhookId: req.headers['x-github-delivery'],

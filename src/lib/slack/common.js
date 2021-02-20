@@ -5,30 +5,23 @@ const simpleGit = require('simple-git/promise')(appRoot.path);
 const users = require('../users');
 
 async function generateAndSendBootMessage(channel = null, { msgText = null } = {}) {
-  const { available, benched } = await users.listAllUserNamesByAvailability();
-  const SHA = await simpleGit.revparse(['HEAD']);
+  const [{ available, benched }, SHA] = await Promise.all([
+    users.listAllUserNamesByAvailability(),
+    simpleGit.revparse(['HEAD']),
+  ]);
+
   const messageObject = {
     text: msgText || `Git Slackin: ONLINE. SHA \`${SHA.trim()}\``,
     attachments: [
       {
         text: '',
         color: 'good',
-        fields: [
-          {
-            title: 'Available Users',
-            value: available,
-          },
-        ],
+        fields: [{ title: 'Available Users', value: available }],
       },
       {
         text: '',
         color: 'warning',
-        fields: [
-          {
-            title: 'Benched Users',
-            value: benched,
-          },
-        ],
+        fields: [{ title: 'Benched Users', value: benched }],
       },
     ],
   };

@@ -34,6 +34,7 @@ async function routeIt(body, { signature }) {
       throw new Error('Signatures do not match!');
     }
   }
+
   logger.info(`[RouteIt] ${body.action} on ${body.pull_request.base.repo.name}`);
 
   try {

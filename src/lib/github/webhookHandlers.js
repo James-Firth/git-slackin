@@ -78,21 +78,15 @@ async function sendOpenerInitialStateMessage(opener, reviewers, prObj) {
 async function requestReviewersAndAssignees(users, body) {
   try {
     const githubUsers = users.map(user => user.github);
+    const owner = body.pull_request.base.repo.owner.login;
+    const repo = body.pull_request.base.repo.name;
+    const number = body.pull_request.number;
 
-    // Should probably look at the results to check if reviewers are there.
-    const reviewRequests = await octokit.pullRequests.createReviewRequest({
-      owner: body.pull_request.base.repo.owner.login,
-      repo: body.pull_request.base.repo.name,
-      number: body.pull_request.number,
-      reviewers: githubUsers,
-    });
-
-    const assignees = await octokit.issues.addAssignees({
-      owner: body.pull_request.base.repo.owner.login,
-      repo: body.pull_request.base.repo.name,
-      number: body.pull_request.number,
-      assignees: githubUsers,
-    });
+    // Should probably look at the results to check if reviewres are there.
+    const [reviewRequests, assignees] = await Promise.all([
+      octokit.pullRequests.createReviewRequest({ owner, repo, number, reviewers: githubUsers }),
+      octokit.issues.addAssignees({ owner, repo, number, assignees: githubUsers }),
+    ]);
 
     logger.info(`[Add Users to PR] Repo: ${body.pull_request.base.repo.name}. ` +
     `Assigned and Request reviews from: ${githubUsers}`);
@@ -105,9 +99,13 @@ async function requestReviewersAndAssignees(users, body) {
 
 async function requestReviewByGithubName(body) {
   const logId = shortid.generate();
-  const opener = await findByGithubName(body.pull_request.user.login, logId);
+
+  const [opener, requestedReviewer] = await Promise.all([
+    findByGithubName(body.pull_request.user.login, logId),
+    findByGithubName(body.requested_reviewer.login, logId),
+  ]);
+
   const openerName = opener ? opener.name : body.pull_request.user.login;
-  const requestedReviewer = await findByGithubName(body.requested_reviewer.login, logId);
   if (requestedReviewer && requestedReviewer.slack) {
     return await sendReviewRequestMessage(openerName, requestedReviewer, body);
   }
@@ -132,9 +130,10 @@ async function prOpened(body) {
     const numReviewersAlready = body.pull_request.assignees.length;
     const numReviewersToRandomlySelect = NUM_REVIEWERS - numReviewersAlready;
 
-    const preselectedUsers = await Promise.all(body.pull_request.assignees.map(user => {
-      return findByGithubName(user.login, logId);
-    }));
+    const preselectedUsers = await Promise.all(
+      body.pull_request.assignees.map(user => findByGithubName(user.login, logId))
+    );
+
     const notTheseUsers = opener ? preselectedUsers.concat(opener.github) : preselectedUsers;
     const randomUsers = await selectRandomGithubUsers(notTheseUsers, body.repository.full_name, numReviewersToRandomlySelect);
     const users = preselectedUsers.concat(randomUsers);
@@ -195,8 +194,11 @@ async function prReviewed(body) {
   let reviewer, coder;
   const logId = shortid.generate();
   try {
-    reviewer = await findByGithubName(body.review.user.login, logId);
-    coder = await findByGithubName(body.pull_request.user.login, logId);
+    const [reviewer, coder] = await Promise.all(
+      findByGithubName(body.review.user.login, logId),
+      findByGithubName(body.pull_request.user.login, logId),
+    );
+
     if (!reviewer) throw new Error(`[github.prReviewed:${logId}] Reviewer not registered with git slackin`);
     if (!coder) throw new Error(`[github.prReviewed:${logId}] Coder not registered with git slackin`);
   } catch (e) {
@@ -237,13 +239,16 @@ async function prReviewed(body) {
 
   try {
     // let coder know its been done
-    await send(coder.slack.id, message);
-    let shouldNotify = await checkForReviews({
-      owner: body.repository.owner.login,
-      repo: body.repository.name,
-      number: body.pull_request.number });
+    const [, passedReviewThreshold] = await Promise.all([
+      send(coder.slack.id, message),
+      checkForReviews({
+        owner: body.repository.owner.login,
+        repo: body.repository.name,
+        number: body.pull_request.number,
+      }),
+    ]);
 
-    shouldNotify = shouldNotify && body.review.state.toUpperCase() === 'APPROVED';
+    const shouldNotify = passedReviewThreshold && body.review.state.toUpperCase() === 'APPROVED';
 
     if (shouldNotify) {
       const mergerMessage =
@@ -297,11 +302,14 @@ function sendPrUpdatedMessage(openerName, users, body) {
 
 async function prSynchronize(body) {
   const logId = shortid.generate();
-  const opener = await findByGithubName(body.pull_request.user.login, logId);
+  const reviewer_list = body.pull_request.requested_reviewers;
+
+  const [opener, ...reviewers] = await Promise.all(
+    findByGithubName(body.pull_request.user.login, logId),
+    ...reviewer_list.map(user => findByGithubName(user.login, logId)),
+  );
+
   const openerName = opener ? opener.name : body.pull_request.user.login;
-  const reviewers = await Promise.all(body.pull_request.requested_reviewers.map(user => {
-    return findByGithubName(user.login, logId);
-  }));
 
   return await sendPrUpdatedMessage(openerName, reviewers, body);
 }
